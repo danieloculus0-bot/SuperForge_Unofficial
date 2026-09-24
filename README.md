@@ -1,53 +1,171 @@
-# SuperForge Unofficial
+# SuperForge Unified Intelligent Suite
 
-SuperForge Unofficial is the release-candidate and build-artifact repository for the SuperForge ERP Suite.
+This branch turns the former SuperForge artifact shell into a real source tree for one manufacturing operating system.
 
-## Repo role
+**Branch:** `unified-intelligent-suite`
 
-This repository is for packaged builds, installer experiments, checksums, manifests, and release-candidate documentation.
+The goal is simple: one package, one context model, one audit spine, and no disconnected departmental islands.
 
-Primary source code lives in:
+## What is consolidated
 
-- `danieloculus0-bot/MFGForge`
+- **MFGForge / SuperForge:** ERP-style master data, jobs, quoting, planning, operational intelligence.
+- **ForgeQC:** NCR/DMR/RMA/CAR/CAPA/deviation thinking, KPI/PPM linkage, ERP report ingest, persistent audit patterns.
+- **PM-Tracker:** machine register, PM task/completion behavior, failure-to-planning logic.
+- **EZ Expedite:** occurrence ownership, action routing, due dates, escalation, external-system references.
+- **ForgeVault:** controlled drawing/document identity, revision/version concepts, release/audit patterns.
+- **EZ FAIR:** actual PDF dimension extraction, ballooning, and FAI workbook writer source is vendored into `superforge/modules/`.
+- **BEAN:** memory/learning direction is adapted into supervised observations and improvement proposals. Learning cannot silently rewrite production logic.
 
-Source logic being consolidated into the suite comes from:
+## Non-negotiable architecture
 
-- `danieloculus0-bot/ForgeQC`
-- `danieloculus0-bot/ForgeVault`
-- `danieloculus0-bot/MFGForge`
+### 1. Everything emits events
 
-## Current build target
+Business mutations publish domain events to a shared event ledger. Event IDs, parent IDs, and correlation IDs connect derived work across modules.
 
-The integration branch is:
+Examples:
+
+- quality record -> containment action -> job risk -> supplier/PO review -> PPM snapshot
+- FAI failure -> NCR review -> job hold review
+- failed PM -> affected jobs -> planning/capacity -> quality risk
+- late PO -> expediting -> inventory impact -> job risk
+- inventory shortage -> purchasing -> job schedule -> quote material risk
+- clocking error -> correction -> job-cost review -> BEAN observation
+- ERP sync -> reconciliation -> tracker refresh -> intelligence review
+
+### 2. Everything is auditable
+
+`%PROGRAMDATA%\SuperForge\audit\superforge_audit.jsonl` on Windows is append-only from the application's point of view.
+
+Each entry contains:
+
+- sequence
+- UTC timestamp
+- event ID
+- correlation ID
+- source and target module
+- actor
+- action and reason
+- entity identity
+- before/after snapshots and hashes where applicable
+- previous entry hash
+- current SHA-256 entry hash
+
+The audit path is separate from application binaries. Normal uninstall logic should leave this operational evidence alone.
+
+### 3. Right-click works everywhere
+
+Every screen has a universal context launcher. Right-clicking a record adds record-aware destinations. Right-clicking empty application space opens the global module launcher.
+
+Typical menu:
 
 ```text
-MFGForge: integration/superforge-suite
+Open with >
+  Job Tracker
+  Purchase Order Tracker
+  Inventory Tracker
+  Job Clocking Errors
+  Quality Forge
+  PM / Equipment
+  Drawing / Document Vault
+  EZ FAIR / FAI
+  PPAP
+  Quoting
+  Planning / Capacity
+  Supplier History
+  ERP / Systems
+  BEAN Intelligence
+  Audit Trail
 ```
 
-The package target is:
+Context is carried in the URL and relevant tracker views resolve direct relationships instead of opening blank.
+
+### 4. Quality is the center of gravity
+
+Quality Forge is designed to become the strongest module in the suite, not a side page.
+
+The shared schema supports:
+
+- NCR
+- DMR
+- RMA
+- CAR
+- CAPA
+- deviation
+- inspection reject
+- customer complaint
+- supplier NCR
+- 5-Why / corrective action
+- containment
+- disposition
+- root cause
+- corrective/preventive action
+- effectiveness
+- part/job/PO/supplier/machine links
+- PPM
+- inspections
+- FAI
+- PPAP
+- linked evidence
+- workflow actions
+
+### 5. ERP integration is adapter-based
+
+SuperForge does not hard-code itself to JobBOSS².
+
+Built-in adapter contracts cover:
+
+- CSV/JSON report-drop feeds
+- REST APIs
+- approved SQL/report views
+- queued outbound payloads
+- field mapping and transforms
+- durable external IDs
+- sync-run receipts
+- conflicts
+- retries/outbox
+
+That architecture can support JobBOSS², Epicor, Plex, SAP, Infor/Syteline, or a custom ERP when that system exposes an approved interface. Closed proprietary systems still require whatever export/API/database access the vendor permits.
+
+### 6. Learning is supervised
+
+BEAN-style learning can:
+
+- retain observations
+- measure repeated signals
+- retain outcomes and human ratings
+- propose rule/routing/threshold improvements
+- attach evidence
+- require a validation plan
+- require a rollback plan
+
+It cannot silently change production rules. Proposals remain `proposal_only` until a recorded human review changes permission.
+
+## Run
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+python run.py
+```
+
+Open:
 
 ```text
-dist/SuperForge.exe
+http://127.0.0.1:5060
 ```
 
-## Product goal
+## UI
 
-One local Windows executable launches one SuperForge ERP Suite containing:
+- dark by default
+- neutral dark surfaces
+- one configurable accent color for buttons, active navigation, and subtle highlights
+- optional light mode
+- no multicolor carnival UI
+- global and record-specific right-click navigation
 
-- quality events, RMA, NCR, DMR, CAPA, and deviations
-- controlled vendor, supplier, material, purchased part, and document vault logic
-- quoting intake, drawing/PDF BOM candidate review, material assignment drafts, and lead-time logic
-- planning and purchasing watchlists
-- material certificate control
-- machine utilization and capacity pressure
-- FPY, operator efficiency, quoting throughput, and company pulse reporting
-- clean cross-module intelligence and workflow review gates
+## Current build status
 
-## Boundary rule
+This branch is the new unified foundation. It already contains the shared schema, event bus, audit journal, context router, ERP adapter framework, native quality services, supervised learning services, and vendored EZ FAIR extraction/workbook engines.
 
-Do not develop primary source code directly in this repository unless the project intentionally migrates here later.
-
-For now:
-
-- `MFGForge` is the source-of-truth app repo.
-- `SuperForge_Unofficial` is the release/artifact repo.
+Legacy repos remain untouched while migration continues.
