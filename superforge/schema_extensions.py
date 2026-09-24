@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .db import db
+from pathlib import Path\nfrom .db import db
 
 EXTENSION_SCHEMA=r"""
 CREATE TABLE IF NOT EXISTS quote_intakes(
