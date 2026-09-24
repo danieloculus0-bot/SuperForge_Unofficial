@@ -33,7 +33,7 @@ def evaluate_dependency(dep: OperationDependency, as_of: date | None = None) -> 
         margin = (dep.need_by - dep.promised_date).days
         if dep.ordered_qty >= dep.required_qty and margin >= 0:
             return {
-                "status": "AT_RISK" if margin <= 1 else "PLANNED",
+                "status": "AT_RISK" if margin <= 0 else "PLANNED",
                 "reason": (
                     f"{dep.description} promised {dep.promised_date.isoformat()} "
                     f"for need-by {dep.need_by.isoformat()}."
