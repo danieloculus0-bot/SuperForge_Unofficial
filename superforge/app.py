@@ -537,7 +537,7 @@ def create_app(test_config:dict|None=None)->Flask:
     def context_record(entity_type,entity_id):
         if entity_type=="quality_record":
             return redirect(url_for("quality_detail",record_id=entity_id))
-        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans"}
+        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans","method_dependency":"ezm_dependencies"}
         table=table_map.get(entity_type)
         if not table:
             return page("Record",f"<div class='panel'>Unknown entity type: {e(entity_type)}</div>",context_type=entity_type,context_id=entity_id),404
