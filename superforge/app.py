@@ -6,7 +6,8 @@ from flask import Flask, jsonify, redirect, request, url_for
 
 from .audit import tail_entries, verify_journal, record_event
 from .context_menu import menu_for
-from .db import db, init_db\nfrom .schema_extensions import init_extensions
+from .db import db, init_db
+from .schema_extensions import init_extensions
 from .event_bus import logic_matrix, publish, register_default_logic
 from .integrations.service import IntegrationService
 from .modules.learning import patterns
@@ -54,6 +55,7 @@ def _list(sql,args=()):
 
 def create_app(test_config:dict|None=None)->Flask:
     init_db()
+    init_extensions()
     register_default_logic()
     app=Flask(__name__)
     app.config.update(SECRET_KEY="superforge-local")
