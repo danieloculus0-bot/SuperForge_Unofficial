@@ -116,6 +116,15 @@ def _clocking_error(event:DomainEvent)->None:
 def _job_changed(event:DomainEvent)->None:
     create_action(event,workflow_key="job-change",step_key="check-po-material-quality",target_module="planning")
 
+def _methods_plan_created(event:DomainEvent)->None:
+    create_action(event,workflow_key="methods-release",step_key="review-routing-readiness",target_module="planning")
+    create_action(event,workflow_key="methods-supply-readiness",step_key="verify-material-tool-dependencies",target_module="purchase_orders")
+
+def _methods_dependency_blocked(event:DomainEvent)->None:
+    create_action(event,workflow_key="methods-shortage",step_key="expedite-required-resource",target_module="purchase_orders")
+    create_action(event,workflow_key="methods-shortage",step_key="review-job-operation-date",target_module="job_tracker")
+    create_action(event,workflow_key="methods-shortage",step_key="recompute-routing-readiness",target_module="ez_methods")
+
 def _erp_sync(event:DomainEvent)->None:
     create_action(event,workflow_key="erp-sync",step_key="reconcile",target_module="integrations")
     create_action(event,workflow_key="erp-sync",step_key="refresh-intelligence",target_module="bean")
@@ -130,6 +139,8 @@ def register_default_logic()->None:
         "inventory.shortage":_inventory_short,
         "clocking.error":_clocking_error,
         "job.changed":_job_changed,
+        "methods.plan.created":_methods_plan_created,
+        "methods.dependency.blocked":_methods_dependency_blocked,
         "erp.sync.completed":_erp_sync,
     }
     for key,handler in pairs.items():
@@ -145,7 +156,8 @@ def logic_matrix()->list[dict[str,str]]:
         {"source":"Inventory","event":"Shortage / allocation change","targets":"POs, jobs, quoting, planning"},
         {"source":"Clocking","event":"Clocking error","targets":"Job cost, correction workflow, BEAN pattern learning"},
         {"source":"Jobs","event":"Status/due/operation change","targets":"PO, inventory, quality, PM/capacity, planning"},
-        {"source":"Vault","event":"Revision/release change","targets":"Jobs, EZ FAIR, quality, quoting, ERP export"},
+        {"source":"Vault","event":"Revision/release change","targets":"Jobs, EZ FAIR, EZ Methods, quality, quoting, ERP export"},
+        {"source":"EZ Methods","event":"Plan/revision/resource readiness","targets":"Purchasing, jobs, planning, EZ FAIR/inspection, quality, audit"},
         {"source":"ERP integration","event":"Sync completed/conflict","targets":"Reconciliation, all trackers, BEAN"},
         {"source":"BEAN","event":"Pattern/proposal","targets":"Human-reviewed rule proposal only"},
     ]
