@@ -8,7 +8,7 @@ MODULES=[
  ("clocking","Job Clocking Errors","/clocking-errors"),
  ("quality","Quality Forge","/quality"),
  ("pm","PM / Equipment","/pm"),
- ("ez_methods","EZ Methods / Routings","/methods"),
+ ("ez_methods","EZ Methods","/methods"),
  ("vault","Drawing / Document Vault","/vault"),
  ("ezfair","EZ FAIR / FAI","/ez-fair"),
  ("ppap","PPAP","/ppap"),
