@@ -13,7 +13,8 @@ The goal is simple: one package, one context model, one audit spine, and no disc
 - **PM-Tracker:** machine register, PM task/completion behavior, failure-to-planning logic.
 - **EZ Expedite:** occurrence ownership, action routing, due dates, escalation, external-system references.
 - **ForgeVault:** controlled drawing/document identity, revision/version concepts, release/audit patterns.
-- **EZ FAIR:** actual PDF dimension extraction, ballooning, and FAI workbook writer source is vendored into `superforge/modules/`.
+- **EZ FAIR:** actual PDF dimension extraction, ballooning, and FAI workbook writer source is vendored into superforge/modules/.
+- **EZ Methods:** Vantage-style methods master planning, drawing/PO requirement traceability, operation-level material/tool/gage/fixture readiness, GD&T-to-inspection linkage, and EZ Expedite purchasing triggers.
 - **BEAN:** memory/learning direction is adapted into supervised observations and improvement proposals. Learning cannot silently rewrite production logic.
 
 ## Non-negotiable architecture
