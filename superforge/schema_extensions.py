@@ -1,5 +1,6 @@
 from __future__ import annotations
-from pathlib import Path\nfrom .db import db
+from pathlib import Path
+from .db import db
 
 EXTENSION_SCHEMA=r"""
 CREATE TABLE IF NOT EXISTS quote_intakes(
@@ -22,3 +23,6 @@ CREATE TABLE IF NOT EXISTS purchasing_watchlists(
 def init_extensions()->None:
     with db() as con:
         con.executescript(EXTENSION_SCHEMA)
+        methods_schema=Path(__file__).resolve().parents[1] / "modules" / "ez_methods" / "schema.sql"
+        if methods_schema.exists():
+            con.executescript(methods_schema.read_text(encoding="utf-8"))
