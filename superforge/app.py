@@ -12,6 +12,7 @@ from .event_bus import logic_matrix, publish, register_default_logic
 from .integrations.service import IntegrationService
 from .modules.learning import patterns
 from .modules.quality import create_quality_record, quality_pulse
+from .modules.ez_methods import create_method_plan, method_dashboard
 from .ui import page
 
 def e(value)->str:
