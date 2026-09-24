@@ -1,23 +1,19 @@
-# SuperForge release artifact repo
-
-# Allow intentional release candidates later, but ignore common build junk.
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
+venv/
+dist/
 build/
-*.log
-*.tmp
-*.sqlite
+*.spec
 *.db
-
-# Never commit private manufacturing data.
+*.sqlite*
+*.jsonl
+.env
+instance/
+data/
+local_inputs/
+local_outputs/
 *.xlsx
-*.xls
-*.pdf
-*.dwg
-*.dxf
-*.step
-*.stp
-*.igs
-*.iges
-*.zip
+*.xlsm
+*.csv
+!examples/*.csv
