@@ -47,7 +47,7 @@ def test_unified_smoke(tmp_path,monkeypatch):
     assert "Inventory Tracker" in labels
     assert "Job Clocking Errors" in labels
     assert "EZ FAIR / FAI" in labels
-    assert "EZ Methods" in labels
+    assert "EZ Methods / Routings" in labels
     assert "Audit Trail" in labels
 
     source=tmp_path/"jobs.csv"
