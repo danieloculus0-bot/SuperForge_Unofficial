@@ -234,6 +234,28 @@ def create_app(test_config:dict|None=None)->Flask:
 <div><button>Create + Route</button></div></form></div>"""
         return page("New Quality Record",body,module_key="quality")
 
+    @app.get("/methods")
+    def methods():
+        ctype,cid=request.args.get("context_type"),request.args.get("context_id")
+        sql="""SELECT p.id,p.job_number,p.part_number,p.revision,p.customer,p.quantity,p.required_date,p.status,
+                      COUNT(DISTINCT o.id) operations,COUNT(DISTINCT d.id) dependencies
+               FROM ezm_method_plans p
+               LEFT JOIN ezm_operations o ON o.plan_id=p.id
+               LEFT JOIN ezm_dependencies d ON d.operation_id=o.id"""
+        args=()
+        if ctype=="job":
+            job=_linked_id("jobs",cid,"job_number")
+            if job:
+                sql+=" WHERE p.job_number=?"; args=(job,)
+        elif ctype=="part":
+            part=_linked_id("parts",cid,"part_number")
+            if part:
+                sql+=" WHERE p.part_number=?"; args=(part,)
+        sql+=" GROUP BY p.id ORDER BY p.id DESC LIMIT 300"
+        rows=_list(sql,args)
+        body="<section class='page-head'><div><p class='eyebrow'>Methods / Routing Intelligence</p><h1>EZ Methods</h1><p class='sub'>Routing operations, material/tool/gage/fixture/outside-process dependencies, GD&T characteristics and operation readiness. Dependency status feeds purchasing, inventory, jobs, quality and the audit/event spine.</p></div></section>"+context_banner()+"<div class='panel'>"+table_html(rows,[("job_number","Job"),("part_number","Part"),("revision","Rev"),("customer","Customer"),("quantity","Qty"),("required_date","Required"),("status","Status"),("operations","Ops"),("dependencies","Dependencies")],"method_plan","job_number")+"</div>"
+        return page("EZ Methods / Routings",body,module_key="ez_methods")
+
     @app.route("/pm",methods=["GET","POST"])
     def pm():
         if request.method=="POST":
@@ -383,7 +405,7 @@ def create_app(test_config:dict|None=None)->Flask:
 
     @app.get("/context/<entity_type>/<entity_id>")
     def context_record(entity_type,entity_id):
-        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals"}
+        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans"}
         table=table_map.get(entity_type)
         if not table:
             return page("Record",f"<div class='panel'>Unknown entity type: {e(entity_type)}</div>",context_type=entity_type,context_id=entity_id),404
