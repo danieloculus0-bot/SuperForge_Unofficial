@@ -14,7 +14,7 @@ def test_unified_smoke(tmp_path,monkeypatch):
     app=create_app({"TESTING":True})
     client=app.test_client()
 
-    for route in ["/","/jobs","/purchase-orders","/inventory","/clocking-errors","/quality","/pm","/vault","/ez-fair","/ppap","/quoting","/planning","/suppliers","/integrations","/intelligence","/logic","/audit","/appearance","/health"]:
+    for route in ["/","/jobs","/purchase-orders","/inventory","/clocking-errors","/quality","/pm","/vault","/ez-fair","/methods","/ppap","/quoting","/planning","/suppliers","/integrations","/intelligence","/logic","/audit","/appearance","/health"]:
         response=client.get(route)
         assert response.status_code==200,route
 
@@ -47,6 +47,7 @@ def test_unified_smoke(tmp_path,monkeypatch):
     assert "Inventory Tracker" in labels
     assert "Job Clocking Errors" in labels
     assert "EZ FAIR / FAI" in labels
+    assert "EZ Methods" in labels
     assert "Audit Trail" in labels
 
     source=tmp_path/"jobs.csv"
