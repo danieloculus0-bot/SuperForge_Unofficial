@@ -365,26 +365,25 @@ def create_app(test_config:dict|None=None)->Flask:
         body+="<div class='panel'><h2>Case Audit Trail</h2>"+table_html(audit_view,[("id","Seq"),("time","UTC"),("action","Action"),("module","Module"),("actor","Actor"),("reason","Reason"),("hash","Hash")],"audit_event","action")+"</div>"
         return page(f'{rec["record_number"]} | Quality Forge',body,module_key="quality",context_type="quality_record",context_id=str(record_id))
 
-    @app.get("/methods")
+    @app.route("/methods",methods=["GET","POST"])
     def methods():
-        ctype,cid=request.args.get("context_type"),request.args.get("context_id")
-        sql="""SELECT p.id,p.job_number,p.part_number,p.revision,p.customer,p.quantity,p.required_date,p.status,
-                      COUNT(DISTINCT o.id) operations,COUNT(DISTINCT d.id) dependencies
-               FROM ezm_method_plans p
-               LEFT JOIN ezm_operations o ON o.plan_id=p.id
-               LEFT JOIN ezm_dependencies d ON d.operation_id=o.id"""
-        args=()
-        if ctype=="job":
-            job=_linked_id("jobs",cid,"job_number")
-            if job:
-                sql+=" WHERE p.job_number=?"; args=(job,)
-        elif ctype=="part":
-            part=_linked_id("parts",cid,"part_number")
-            if part:
-                sql+=" WHERE p.part_number=?"; args=(part,)
-        sql+=" GROUP BY p.id ORDER BY p.id DESC LIMIT 300"
-        rows=_list(sql,args)
-        body="<section class='page-head'><div><p class='eyebrow'>Methods / Routing Intelligence</p><h1>EZ Methods</h1><p class='sub'>Routing operations, material/tool/gage/fixture/outside-process dependencies, GD&T characteristics and operation readiness. Dependency status feeds purchasing, inventory, jobs, quality and the audit/event spine.</p></div></section>"+context_banner()+"<div class='panel'>"+table_html(rows,[("job_number","Job"),("part_number","Part"),("revision","Rev"),("customer","Customer"),("quantity","Qty"),("required_date","Required"),("status","Status"),("operations","Ops"),("dependencies","Dependencies")],"method_plan","job_number")+"</div>"
+        if request.method=="POST":
+            data={k:request.form.get(k) for k in request.form}
+            for k in ("job_id","part_id"):
+                data[k]=int(data[k]) if data.get(k) else None
+            create_method_plan(data,actor=request.form.get("actor") or "local")
+            return redirect("/methods")
+        ctype,cid=request.args.get("context_type",""),request.args.get("context_id","")
+        plans,deps=method_dashboard(ctype,cid)
+        form="""<details class='panel'><summary><b>New method plan</b></summary><form method='post' class='form-grid' style='margin-top:12px'>
+<label>Job ID<input name='job_id' type='number'></label><label>Part ID<input name='part_id' type='number'></label>
+<label>Job Number<input name='job_number' required></label><label>Part Number<input name='part_number' required></label>
+<label>Revision<input name='revision' required></label><label>Customer<input name='customer'></label>
+<label>Quantity<input name='quantity' type='number' step='.001' value='1'></label><label>Required Date<input name='required_date' type='date' required></label>
+<label>Actor<input name='actor' value='local'></label><div><button>Create Method Plan</button></div></form></details>"""
+        plan_html=table_html(plans,[("job_number","Job"),("part_number","Part"),("revision","Rev"),("customer","Customer"),("quantity","Qty"),("required_date","Required"),("status","Status"),("updated_at","Updated")],"method_plan","part_number")
+        dep_html=table_html(deps,[("job_number","Job"),("sequence","Seq"),("operation","Operation"),("kind","Need"),("description","Dependency"),("supplier","Supplier"),("supplier_part_number","Supplier PN"),("internal_tool_id","Tool/Gage ID"),("need_by","Need By"),("promised_date","Promised"),("availability","Supply Status"),("readiness","Readiness"),("readiness_reason","Reason")],"method_dependency","description")
+        body="<section class='page-head'><div><p class='eyebrow'>Methods / Routing Intelligence</p><h1>EZ Methods</h1><p class='sub'>Drawing and PO requirements become source-traceable routing methods. Material, taps, tooling, fixtures, gages, programs, purchased components and outside processes are checked against the operation need-by date. EZ FAIR characteristics and GD&T drive inspection gates; shortages drive purchasing and expedite actions.</p></div></section>"+context_banner()+form+"<div class='panel'><h2>Master Method Plans</h2>"+plan_html+"</div><div class='panel'><h2>Operation Readiness / Purchasing Dependencies</h2>"+dep_html+"</div>"
         return page("EZ Methods / Routings",body,module_key="ez_methods")
 
     @app.route("/pm",methods=["GET","POST"])
