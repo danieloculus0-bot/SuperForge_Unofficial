@@ -11,7 +11,13 @@ from .schema_extensions import init_extensions
 from .event_bus import logic_matrix, publish, register_default_logic
 from .integrations.service import IntegrationService
 from .modules.learning import patterns
-from .modules.quality import create_quality_record, quality_pulse
+from .modules.quality import (
+    create_quality_record,
+    quality_pulse,
+    update_quality_record,
+    create_car,
+    save_five_why,
+)
 from .modules.ez_methods import create_method_plan, method_dashboard
 from .ui import page
 
@@ -32,6 +38,9 @@ def table_html(rows,columns,entity_type,label_field=None):
             value=d.get(key)
             if key=="status":
                 out.append(f"<td><span class='badge accent'>{e(value)}</span></td>")
+            elif key==(label_field or columns[0][0]):
+                detail=f"/quality/{d.get('id')}" if entity_type=="quality_record" else f"/context/{entity_type}/{d.get('id')}"
+                out.append(f"<td><a href='{detail}' style='font-weight:850;text-decoration:none'>{e(value)}</a></td>")
             else:
                 out.append(f"<td>{e(value)}</td>")
         out.append("</tr>")
@@ -223,7 +232,7 @@ def create_app(test_config:dict|None=None)->Flask:
             for k in ("customer_id","supplier_id","part_id","job_id","po_id","machine_id"):
                 data[k]=int(data[k]) if data.get(k) else None
             rid=create_quality_record(data,actor=request.form.get("actor") or "local")
-            return redirect(url_for("context_record",entity_type="quality_record",entity_id=rid))
+            return redirect(url_for("quality_detail",record_id=rid))
         body="""<section class='page-head'><div><p class='eyebrow'>Controlled occurrence</p><h1>New Quality Record</h1></div></section>
 <div class='panel'><form method='post' class='form-grid'>
 <label>Type<select name='record_type'><option>NCR</option><option>DMR</option><option>RMA</option><option>CAR</option><option>CAPA</option><option>DEVIATION</option><option>INSPECTION_REJECT</option><option>CUSTOMER_COMPLAINT</option><option>SUPPLIER_NCR</option></select></label>
@@ -234,6 +243,127 @@ def create_app(test_config:dict|None=None)->Flask:
 <label class='wide'>Condition / Description<textarea name='description' required></textarea></label><label class='wide'>Immediate Containment<textarea name='containment'></textarea></label>
 <div><button>Create + Route</button></div></form></div>"""
         return page("New Quality Record",body,module_key="quality")
+
+    @app.route("/quality/<int:record_id>",methods=["GET","POST"])
+    def quality_detail(record_id:int):
+        if request.method=="POST":
+            action=request.form.get("action","update_record")
+            actor=request.form.get("actor") or "local"
+            if action=="update_record":
+                changes={k:request.form.get(k) for k in ("severity","status","owner","due_date","description","containment","disposition","root_cause","corrective_action","preventive_action","effectiveness")}
+                update_quality_record(record_id,changes,actor=actor,reason=request.form.get("change_reason") or "Case workspace update")
+            elif action=="create_car":
+                create_car(
+                    quality_record_id=record_id,
+                    car_number=request.form.get("car_number","").strip(),
+                    problem_statement=request.form.get("problem_statement","").strip(),
+                    owner=request.form.get("car_owner","").strip(),
+                    root_cause_due=request.form.get("root_cause_due",""),
+                    action_due=request.form.get("action_due",""),
+                    actor=actor,
+                )
+            elif action=="save_five_why":
+                save_five_why(
+                    int(request.form.get("car_id")),
+                    [request.form.get(f"why{i}","") for i in range(1,6)],
+                    request.form.get("car_root_cause",""),
+                    request.form.get("car_corrective_action",""),
+                    request.form.get("car_preventive_action",""),
+                    actor=actor,
+                )
+            return redirect(url_for("quality_detail",record_id=record_id))
+
+        with db() as con:
+            row=con.execute("""SELECT q.*,p.part_number,p.revision part_revision,j.job_number,po.po_number,s.name supplier,c.name customer,m.machine_number
+                               FROM quality_records q
+                               LEFT JOIN parts p ON p.id=q.part_id
+                               LEFT JOIN jobs j ON j.id=q.job_id
+                               LEFT JOIN purchase_orders po ON po.id=q.po_id
+                               LEFT JOIN suppliers s ON s.id=q.supplier_id
+                               LEFT JOIN customers c ON c.id=q.customer_id
+                               LEFT JOIN machines m ON m.id=q.machine_id
+                               WHERE q.id=?""",(record_id,)).fetchone()
+            if not row:
+                return page("Quality Record","<div class='panel'>Quality record not found.</div>",module_key="quality"),404
+            rec=dict(row)
+            cars=[dict(r) for r in con.execute("SELECT * FROM corrective_actions WHERE quality_record_id=? ORDER BY id DESC",(record_id,))]
+            actions=[dict(r) for r in con.execute("SELECT * FROM workflow_actions WHERE entity_type='quality_record' AND entity_id=? ORDER BY id DESC",(str(record_id),))]
+            inspections=[dict(r) for r in con.execute("SELECT * FROM inspections WHERE quality_record_id=? ORDER BY id DESC",(record_id,))]
+            fai=[]
+            if rec.get("job_id") or rec.get("part_id"):
+                clauses=[]; args=[]
+                if rec.get("job_id"): clauses.append("job_id=?"); args.append(rec["job_id"])
+                if rec.get("part_id"): clauses.append("part_id=?"); args.append(rec["part_id"])
+                fai=[dict(r) for r in con.execute("SELECT * FROM fai_runs WHERE "+" OR ".join(clauses)+" ORDER BY id DESC",tuple(args))]
+            ppap=[dict(r) for r in con.execute("SELECT * FROM ppap_packages WHERE part_id=? ORDER BY id DESC",(rec.get("part_id"),))] if rec.get("part_id") else []
+
+        audit_rows=[]
+        for item in tail_entries(1000):
+            if str(item.get("entity_id",""))==str(record_id) and item.get("entity_type") in {"quality_record","corrective_action"}:
+                audit_rows.append(item)
+        refs=" · ".join(x for x in [
+            f"Customer: {e(rec.get('customer'))}" if rec.get("customer") else "",
+            f"Part: {e(rec.get('part_number'))} Rev {e(rec.get('part_revision'))}" if rec.get("part_number") else "",
+            f"Job: {e(rec.get('job_number'))}" if rec.get("job_number") else "",
+            f"PO: {e(rec.get('po_number'))}" if rec.get("po_number") else "",
+            f"Supplier: {e(rec.get('supplier'))}" if rec.get("supplier") else "",
+            f"Machine: {e(rec.get('machine_number'))}" if rec.get("machine_number") else "",
+        ] if x)
+
+        body=f"""<section class='page-head sf-context' data-entity-type='quality_record' data-entity-id='{record_id}' data-entity-label='{e(rec["record_number"])}'>
+<div class='grow'><p class='eyebrow'>{e(rec["record_type"])} · controlled quality case</p><h1>{e(rec["record_number"])}</h1><p class='sub'>{refs or "No linked master records yet."}</p></div>
+<span class='badge accent'>{e(rec["status"])}</span></section>
+<div class='grid'>
+<div class='card'><strong class='big'>{e(rec["quantity_affected"])}</strong><span class='label'>Qty Affected</span></div>
+<div class='card'><strong class='big'>{e(rec["severity"])}</strong><span class='label'>Severity</span></div>
+<div class='card'><strong class='big'>{len(cars)}</strong><span class='label'>Corrective Actions</span></div>
+<div class='card'><strong class='big'>{len(actions)}</strong><span class='label'>Workflow Actions</span></div>
+</div>
+<div class='panel' style='margin-top:14px'><h2>Problem / containment / disposition</h2>
+<form method='post' class='form-grid'><input type='hidden' name='action' value='update_record'>
+<label>Severity<input name='severity' value='{e(rec.get("severity"))}'></label><label>Status<input name='status' value='{e(rec.get("status"))}'></label>
+<label>Owner<input name='owner' value='{e(rec.get("owner"))}'></label><label>Due Date<input name='due_date' type='date' value='{e(rec.get("due_date"))}'></label>
+<label class='wide'>Condition<textarea name='description'>{e(rec.get("description"))}</textarea></label>
+<label class='wide'>Immediate Containment<textarea name='containment'>{e(rec.get("containment"))}</textarea></label>
+<label class='wide'>Disposition<textarea name='disposition'>{e(rec.get("disposition"))}</textarea></label>
+<label class='wide'>Root Cause<textarea name='root_cause'>{e(rec.get("root_cause"))}</textarea></label>
+<label class='wide'>Corrective Action<textarea name='corrective_action'>{e(rec.get("corrective_action"))}</textarea></label>
+<label class='wide'>Preventive Action<textarea name='preventive_action'>{e(rec.get("preventive_action"))}</textarea></label>
+<label class='wide'>Effectiveness<textarea name='effectiveness'>{e(rec.get("effectiveness"))}</textarea></label>
+<label>Actor<input name='actor' value='local'></label><label>Change Reason<input name='change_reason' placeholder='Why is this being changed?'></label>
+<div><button>Save Controlled Update</button></div></form></div>"""
+
+        if not cars:
+            body+=f"""<div class='panel'><h2>Corrective Action</h2><p class='sub'>Create a linked CAR when containment alone is not enough. The CAR stays tied to this case and the same audit chain.</p>
+<form method='post' class='form-grid'><input type='hidden' name='action' value='create_car'>
+<label>CAR Number<input name='car_number' required></label><label>Owner<input name='car_owner'></label>
+<label>Root Cause Due<input name='root_cause_due' type='date'></label><label>Action Due<input name='action_due' type='date'></label>
+<label class='wide'>Problem Statement<textarea name='problem_statement' required>{e(rec.get("description"))}</textarea></label>
+<label>Actor<input name='actor' value='local'></label><div><button>Create Linked CAR</button></div></form></div>"""
+        else:
+            for car in cars:
+                body+=f"""<div class='panel sf-context' data-entity-type='quality_record' data-entity-id='{record_id}' data-entity-label='{e(car["car_number"])}'>
+<div class='page-head'><div class='grow'><h2>{e(car["car_number"])}</h2><p class='sub'>{e(car["problem_statement"])}</p></div><span class='badge accent'>{e(car["status"])}</span></div>
+<form method='post' class='form-grid'><input type='hidden' name='action' value='save_five_why'><input type='hidden' name='car_id' value='{car["id"]}'>
+<label class='wide'>Why 1<textarea name='why1'>{e(car.get("why1"))}</textarea></label>
+<label class='wide'>Why 2<textarea name='why2'>{e(car.get("why2"))}</textarea></label>
+<label class='wide'>Why 3<textarea name='why3'>{e(car.get("why3"))}</textarea></label>
+<label class='wide'>Why 4<textarea name='why4'>{e(car.get("why4"))}</textarea></label>
+<label class='wide'>Why 5<textarea name='why5'>{e(car.get("why5"))}</textarea></label>
+<label class='wide'>Verified Root Cause<textarea name='car_root_cause'>{e(car.get("root_cause"))}</textarea></label>
+<label class='wide'>Corrective Action<textarea name='car_corrective_action'>{e(car.get("corrective_action"))}</textarea></label>
+<label class='wide'>Preventive Action<textarea name='car_preventive_action'>{e(car.get("preventive_action"))}</textarea></label>
+<label>Actor<input name='actor' value='local'></label><div><button>Save 5-Why / Actions</button></div></form></div>"""
+
+        body+="<div class='grid'>"
+        body+="<div class='panel'><h2>Workflow Queue</h2>"+table_html(actions,[("workflow_key","Workflow"),("step_key","Step"),("target_module","Target"),("assigned_to","Owner"),("status","Status"),("due_date","Due")],"quality_record","workflow_key")+"</div>"
+        body+="<div class='panel'><h2>Inspection / FAI / PPAP</h2><p class='statline'>Inspections: <b>"+str(len(inspections))+"</b> · FAI: <b>"+str(len(fai))+"</b> · PPAP: <b>"+str(len(ppap))+"</b></p>"
+        if fai:
+            body+=table_html(fai,[("fai_number","FAI"),("status","Status"),("characteristic_count","Chars"),("pass_count","Pass"),("fail_count","Fail")],"fai","fai_number")
+        body+="</div></div>"
+        audit_view=[{"id":x.get("sequence"),"time":x.get("timestamp_utc"),"action":x.get("action"),"module":x.get("module"),"actor":x.get("actor"),"reason":x.get("reason"),"hash":str(x.get("entry_hash",""))[:12]} for x in reversed(audit_rows)]
+        body+="<div class='panel'><h2>Case Audit Trail</h2>"+table_html(audit_view,[("id","Seq"),("time","UTC"),("action","Action"),("module","Module"),("actor","Actor"),("reason","Reason"),("hash","Hash")],"audit_event","action")+"</div>"
+        return page(f'{rec["record_number"]} | Quality Forge',body,module_key="quality",context_type="quality_record",context_id=str(record_id))
 
     @app.get("/methods")
     def methods():
@@ -406,6 +536,8 @@ def create_app(test_config:dict|None=None)->Flask:
 
     @app.get("/context/<entity_type>/<entity_id>")
     def context_record(entity_type,entity_id):
+        if entity_type=="quality_record":
+            return redirect(url_for("quality_detail",record_id=entity_id))
         table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans"}
         table=table_map.get(entity_type)
         if not table:
