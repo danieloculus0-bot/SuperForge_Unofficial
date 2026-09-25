@@ -8,6 +8,7 @@ def test_leadership_and_automation(tmp_path,monkeypatch):
     from superforge.db import db
     from superforge.event_bus import publish
     from superforge.modules.automation import create_automation_rule
+    from superforge.modules.reward_rules import create_reward_rule
     from superforge.modules.leadership import (
         award_points,
         complete_training,
@@ -60,6 +61,25 @@ def test_leadership_and_automation(tmp_path,monkeypatch):
     },actor="tester")
     complete_training(training_id,account_id,completed_by="Participant",verified_by="tester",evidence_ref="training-matrix")
     assert reward_balance(account_id)==35
+
+    create_reward_rule({
+        "name":"Automatic FPY recognition",
+        "event_type":"quality.excellence",
+        "source_module":"quality",
+        "account_payload_key":"reward_account_id",
+        "payload_key":"fpy",
+        "operator":"gte",
+        "payload_value":"99",
+        "category":"quality",
+        "points":"5",
+        "requires_approval":"0",
+        "period_limit_points":"20",
+    },actor="tester")
+    publish(
+        "quality.excellence",source_module="quality",entity_type="job",entity_id="42",
+        actor="tester",payload={"reward_account_id":account_id,"fpy":99.5},
+    )
+    assert reward_balance(account_id)==40
 
     rule_id=create_automation_rule({
         "name":"Escalate serious test signal",
