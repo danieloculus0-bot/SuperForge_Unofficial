@@ -6,6 +6,7 @@ from flask import Blueprint, redirect, request
 
 from ..db import db
 from ..ui import page
+from .reward_rules import approve_nomination, create_reward_rule, reject_nomination
 from .leadership import (
     _f,
     award_points,
@@ -61,6 +62,15 @@ def leadership_dashboard():
         )]
         training=[dict(r) for r in con.execute(
             "SELECT * FROM training_requirements WHERE active=1 ORDER BY department,title"
+        )]
+        reward_rules=[dict(r) for r in con.execute(
+            "SELECT * FROM reward_rules WHERE active=1 ORDER BY event_type,name"
+        )]
+        nominations=[dict(r) for r in con.execute(
+            """SELECT n.*,r.name rule_name,a.account_key,a.display_name
+               FROM reward_nominations n JOIN reward_rules r ON r.id=n.rule_id
+               JOIN reward_accounts a ON a.id=n.account_id
+               ORDER BY CASE n.status WHEN 'pending' THEN 0 WHEN 'held_limit' THEN 1 ELSE 2 END,n.id DESC LIMIT 60"""
         )]
         actions=[dict(r) for r in con.execute(
             """SELECT id,workflow_key,step_key,source_module,target_module,entity_type,entity_id,
@@ -133,6 +143,17 @@ def leadership_dashboard():
 <label>Department<input name='department'></label><label>Role<input name='role'></label>
 <label>Recurrence Days<input type='number' name='recurrence_days' min='0'></label><label>Reward Points<input type='number' step='.01' name='reward_points' min='0'></label>
 <label class='wide'>Notes<textarea name='notes'></textarea></label><label>Actor<input name='actor' value='local'></label><div><button>Add Training</button></div></form></details>
+
+<details class='panel'><summary><b>Add recognition rule</b></summary>
+<form method='post' action='/leadership/reward-rule' class='form-grid' style='margin-top:12px'>
+<label>Name<input name='name' required></label><label>Event Type<input name='event_type' required placeholder='quality.excellence'></label>
+<label>Source Module<input name='source_module'></label><label>Account Payload Key<input name='account_payload_key' value='reward_account_id'></label>
+<label>Payload Key<input name='payload_key' placeholder='fpy'></label><label>Operator<select name='operator'><option>eq</option><option>ne</option><option>gt</option><option>gte</option><option>lt</option><option>lte</option><option>contains</option><option>truthy</option></select></label>
+<label>Payload Value<input name='payload_value'></label><label>Category<input name='category' value='recognition'></label>
+<label>Points<input type='number' step='.01' name='points' required min='0.01'></label><label>30-Day Limit<input type='number' step='.01' name='period_limit_points' value='0' min='0'></label>
+<label>Approval<select name='requires_approval'><option value='1'>Review first</option><option value='0'>Auto-credit</option></select></label>
+<label>Actor<input name='actor' value='local'></label><label class='wide'>Notes<textarea name='notes'></textarea></label><div><button>Add Recognition Rule</button></div>
+</form></details>
 </div>
 
 <div class='panel'><h2>Leadership Action Queue</h2>
@@ -140,7 +161,12 @@ def leadership_dashboard():
 <div class='panel'><h2>Morale / Workforce Pulse History</h2>{_table(pulses,[('period_end','Period'),('department','Department'),('scheduled_headcount','Scheduled'),('present_headcount','Present'),('overtime_hours','OT Hours'),('over_50_hours_count','50+ Hrs'),('turnover_count','Turnover'),('staffing_shortage_count','Shortage'),('risk_score','Risk')])}</div>
 <div class='panel'><h2>Recognition Accounts</h2>{_table(accounts,[('id','ID'),('account_key','Account'),('display_name','Name'),('department','Department'),('vendor_ref','Vendor Ref'),('balance','Balance'),('status','Status')])}</div>
 <div class='panel'><h2>Recent Recognition / Redemption Ledger</h2>{_table(rewards,[('created_at','Time'),('account_key','Account'),('display_name','Name'),('category','Category'),('points','Points'),('reason','Reason'),('approved_by','Approved By'),('vendor_reference','Vendor Ref')])}</div>
-<div class='panel'><h2>Training Requirements</h2>{_table(training,[('id','ID'),('training_key','Key'),('title','Training'),('department','Department'),('role','Role'),('recurrence_days','Recurrence Days'),('reward_points','Reward Points')])}</div>"""
+<div class='panel'><h2>Training Requirements</h2>{_table(training,[('id','ID'),('training_key','Key'),('title','Training'),('department','Department'),('role','Role'),('recurrence_days','Recurrence Days'),('reward_points','Reward Points')])}</div>
+<div class='panel'><h2>Recognition Rules</h2>{_table(reward_rules,[('id','ID'),('name','Rule'),('event_type','Event'),('payload_key','Signal'),('operator','Op'),('payload_value','Threshold'),('category','Category'),('points','Points'),('requires_approval','Review'),('period_limit_points','30-Day Limit')])}</div>
+<div class='panel'><h2>Recognition Nominations / Rule Results</h2>
+<table><tr><th>ID</th><th>Rule</th><th>Account</th><th>Points</th><th>Category</th><th>Status</th><th>Review</th></tr>
+{''.join(f"<tr><td>{n['id']}</td><td>{_e(n['rule_name'])}</td><td>{_e(n['account_key'])}</td><td>{_e(n['points'])}</td><td>{_e(n['category'])}</td><td>{_e(n['status'])}</td><td>"+((f"<form method='post' action='/leadership/reward-nomination/{n['id']}/approve' style='display:inline'><input name='actor' value='local' style='display:none'><button>Approve</button></form> <form method='post' action='/leadership/reward-nomination/{n['id']}/reject' style='display:inline'><input name='actor' value='local' style='display:none'><button class='secondary'>Reject</button></form>") if n['status'] in ('pending','held_limit') else _e(n.get('reviewed_by')))+"</td></tr>" for n in nominations) or "<tr><td colspan='7' class='empty'>No rule results yet.</td></tr>"}
+</table></div>"""
     return page("Leadership / Company Pulse",body,module_key="leadership")
 
 
@@ -195,4 +221,22 @@ def workflow_action_complete_post(action_id: int):
     complete_workflow_action(
         action_id,actor=request.form.get("actor") or "local",output=request.form.get("output") or ""
     )
+    return redirect("/leadership")
+
+
+@leadership_blueprint.post("/leadership/reward-rule")
+def reward_rule_post():
+    create_reward_rule(dict(request.form),actor=request.form.get("actor") or "local")
+    return redirect("/leadership")
+
+
+@leadership_blueprint.post("/leadership/reward-nomination/<int:nomination_id>/approve")
+def reward_nomination_approve_post(nomination_id: int):
+    approve_nomination(nomination_id,actor=request.form.get("actor") or "local")
+    return redirect("/leadership")
+
+
+@leadership_blueprint.post("/leadership/reward-nomination/<int:nomination_id>/reject")
+def reward_nomination_reject_post(nomination_id: int):
+    reject_nomination(nomination_id,actor=request.form.get("actor") or "local")
     return redirect("/leadership")
