@@ -73,7 +73,7 @@ def test_leadership_and_automation(tmp_path,monkeypatch):
         "category":"quality",
         "points":"5",
         "requires_approval":"0",
-        "period_limit_points":"20",
+        "period_limit_points":"50",
     },actor="tester")
     publish(
         "quality.excellence",source_module="quality",entity_type="job",entity_id="42",
