@@ -26,7 +26,7 @@ def calculate_morale_risk(data: dict) -> float:
     """Aggregate workforce-health heuristic. It never scores an individual."""
     scheduled=max(_i(data.get("scheduled_headcount")), _i(data.get("present_headcount")), 1)
     present=max(_i(data.get("present_headcount")),0)
-    attendance_gap=max(scheduled-present,0)/scheduled
+    attendance_gap=(max(scheduled-present,0)/scheduled) if _i(data.get("scheduled_headcount"))>0 else 0.0
     overtime=_f(data.get("overtime_hours"))/max(scheduled*40.0,1.0)
     over50=_i(data.get("over_50_hours_count"))/scheduled
     exhausted=_i(data.get("exhausted_pto_count"))/scheduled
