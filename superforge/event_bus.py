@@ -125,6 +125,16 @@ def _methods_dependency_blocked(event:DomainEvent)->None:
     create_action(event,workflow_key="methods-shortage",step_key="review-job-operation-date",target_module="job_tracker")
     create_action(event,workflow_key="methods-shortage",step_key="recompute-routing-readiness",target_module="ez_methods")
 
+def _morale_pulse_recorded(event:DomainEvent)->None:
+    try:
+        risk=float(event.payload.get("risk_score") or 0)
+    except (TypeError,ValueError):
+        risk=0.0
+    if risk>=60:
+        create_action(event,workflow_key="morale-response",step_key="leadership-review",target_module="leadership")
+    if risk>=40:
+        create_action(event,workflow_key="morale-learning",step_key="compare-quality-delivery-workforce-trends",target_module="bean")
+
 def _erp_sync(event:DomainEvent)->None:
     create_action(event,workflow_key="erp-sync",step_key="reconcile",target_module="integrations")
     create_action(event,workflow_key="erp-sync",step_key="refresh-intelligence",target_module="bean")
@@ -142,6 +152,7 @@ def register_default_logic()->None:
         "methods.plan.created":_methods_plan_created,
         "methods.dependency.blocked":_methods_dependency_blocked,
         "erp.sync.completed":_erp_sync,
+        "morale.pulse.recorded":_morale_pulse_recorded,
     }
     for key,handler in pairs.items():
         if handler not in _HANDLERS.get(key,[]):
@@ -159,5 +170,7 @@ def logic_matrix()->list[dict[str,str]]:
         {"source":"Vault","event":"Revision/release change","targets":"Jobs, EZ FAIR, EZ Methods, quality, quoting, ERP export"},
         {"source":"EZ Methods","event":"Plan/revision/resource readiness","targets":"Purchasing, jobs, planning, EZ FAIR/inspection, quality, audit"},
         {"source":"ERP integration","event":"Sync completed/conflict","targets":"Reconciliation, all trackers, BEAN"},
+        {"source":"Leadership / Company Pulse","event":"Aggregate morale risk / recognition / training","targets":"Leadership review, training, reward ledger, BEAN trend analysis, audit"},
+        {"source":"Automation","event":"Configured event rule matched","targets":"Assigned and due-dated workflow action with execution receipt"},
         {"source":"BEAN","event":"Pattern/proposal","targets":"Human-reviewed rule proposal only"},
     ]
