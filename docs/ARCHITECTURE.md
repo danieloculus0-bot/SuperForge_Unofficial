@@ -25,12 +25,17 @@
                                     |
                          workflow/action engine
                                     |
-                +-------------------+-------------------+
-                |                                       |
-           ERP adapters                           BEAN learning
-    flatfile / REST / SQL / outbox         observations / proposals
-                |                                       |
-        reconciliation receipts                 human review gate
+             +----------------------+----------------------+
+             |                      |                      |
+      Leadership / Pulse        Automation            ERP adapters
+   morale / rewards / training   event rules     flatfile / REST / SQL
+             |                      |                      |
+             +----------------------+----------------------+
+                                    |
+                              BEAN learning
+                         observations / proposals
+                                    |
+                              human review gate
 ```
 
 ## Transaction boundary
@@ -48,3 +53,12 @@ External systems never become hidden second sources of truth. Every import has a
 ## Context boundary
 
 Every module can accept `context_type` and `context_id`. Direct relationships are used to filter the destination when possible. No blank re-search should be required for common cross-module navigation.
+
+
+## Leadership boundary
+
+Company Pulse uses aggregate operating and workforce-health signals to direct leadership attention. Recognition, training and reward transactions are separate auditable records.
+
+## Automation boundary
+
+Configurable rules may create workflow actions from domain events. They do not bypass the controlled event logic or grant BEAN permission to rewrite production behavior.
