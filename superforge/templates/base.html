@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page_title }} | SuperForge</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='superforge.css') }}">
+</head>
+<body data-entity-type="global" data-entity-id="">
+  <aside class="sidebar">
+    <div class="brand">SUPERFORGE<span>Manufacturing OS</span></div>
+    <nav>
+      {% for module in modules %}
+        <a href="{{ module.route }}" class="{% if active == module.key %}active{% endif %}"><small>{{ module.area }}</small>{{ module.title }}</a>
+      {% endfor %}
+    </nav>
+  </aside>
+  <main>
+    <header class="topbar">
+      <div><strong>{{ page_title }}</strong><span id="context-label">Right-click anywhere for context tools</span></div>
+      <div class="theme-tools">
+        <label>Accent <input id="accent-picker" type="color" value="#2b7fff"></label>
+        <button id="theme-toggle" type="button">Light mode</button>
+      </div>
+    </header>
+    <section class="content">{% block content %}{% endblock %}</section>
+  </main>
+  <div id="context-menu" class="context-menu" hidden></div>
+  <script src="{{ url_for('static', filename='context-menu.js') }}"></script>
+  <script src="{{ url_for('static', filename='theme.js') }}"></script>
+</body>
+</html>
