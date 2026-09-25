@@ -16,6 +16,7 @@ The goal is simple: one package, one context model, one audit spine, and no disc
 - **EZ FAIR:** actual PDF dimension extraction, ballooning, and FAI workbook writer source is vendored into superforge/modules/.
 - **EZ Methods:** Vantage-style methods master planning, drawing/PO requirement traceability, operation-level material/tool/gage/fixture readiness, GD&T-to-inspection linkage, and EZ Expedite purchasing triggers.
 - **Leadership / Company Pulse:** cross-functional accountability, aggregate morale/workforce-health trends, recognition rewards, training incentives, and action closure.
+- **ISO-Hungry reporting backend:** auditable conversion of approved reported-event recognition into payroll-ready earnings, approval batches, export hashes, and payment confirmation receipts.
 - **Automation:** configurable event rules create assigned, due-dated workflow actions with execution receipts while controlled process rules remain deterministic.
 - **BEAN:** memory/learning direction is adapted into supervised observations and improvement proposals. Learning cannot silently rewrite production logic.
 
