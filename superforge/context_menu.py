@@ -36,6 +36,8 @@ ENTITY_RELEVANCE={
  "method_dependency":{"ez_methods","purchase_orders","inventory","job_tracker","quality","suppliers","ezfair","leadership","bean","audit"},
  "morale_pulse":{"leadership","quality","planning","bean","audit"},
  "reward_account":{"leadership","automation","audit"},
+ "reward_rule":{"leadership","automation","audit"},
+ "reward_nomination":{"leadership","audit"},
  "training_requirement":{"leadership","automation","audit"},
  "automation_rule":{"automation","leadership","audit"},
 }
