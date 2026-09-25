@@ -18,6 +18,13 @@ R3_TEMPLATE_CAPACITY = R3_TEMPLATE_END_ROW - R3_START_ROW + 1
 R3_BODY_ROW_HEIGHT = 17.0
 R3_HEADER_ROW_HEIGHT = 15.0
 
+R3_HEADER_METADATA = {
+    "part_no": "B6",
+    "part_name": "K6",
+    "drawing_no": "K8",
+    "revision": "K10",
+}
+
 R3_COLUMNS = {
     "Char Number": 1,
     "Reference Location": 2,
@@ -187,7 +194,7 @@ def _apply_r3_editable_layout(ws, end_row: int) -> None:
     ws.page_setup.orientation = "landscape"
     ws.page_setup.paperSize = ws.PAPERSIZE_LETTER
     ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
+    ws.page_setup.fitToHeight = 1
     ws.page_setup.scale = None
     ws.page_margins.left = 0.25
     ws.page_margins.right = 0.25
@@ -207,7 +214,18 @@ def _apply_r3_editable_layout(ws, end_row: int) -> None:
             cell.alignment = Alignment(horizontal=existing.horizontal or "center", vertical="center", text_rotation=existing.textRotation, wrap_text=True, shrink_to_fit=False, indent=existing.indent)
 
 
+def _fill_r3_header_metadata(ws, characteristics: list[Any]) -> None:
+    if not characteristics:
+        return
+    metadata = _characteristic_metadata(characteristics[0])
+    for key, cell_ref in R3_HEADER_METADATA.items():
+        value = metadata.get(key)
+        if value not in (None, ""):
+            ws[cell_ref] = value
+
+
 def _fill_r3_form(ws, characteristics: list[Any]) -> int:
+    _fill_r3_header_metadata(ws, characteristics)
     end_row = _ensure_r3_row_capacity(ws, len(characteristics))
     _reset_r3_rows(ws, R3_START_ROW, end_row)
     for offset, characteristic in enumerate(characteristics):
@@ -287,8 +305,28 @@ def _fill_generic(ws, characteristics: list[Any]) -> int:
 
 def template_row_capacity(template_path: str | Path) -> int | None:
     wb = load_workbook(template_path, read_only=True, data_only=False)
-    wb.close()
-    return None
+    try:
+        ws = _pick_sheet(wb)
+        if _is_r3_form(ws):
+            return R3_TEMPLATE_CAPACITY
+
+        targets = _header_targets()
+        best_row = None
+        best_count = 0
+        for row in range(1, min(ws.max_row, 80) + 1):
+            found=set()
+            for col in range(1, min(ws.max_column, 80) + 1):
+                normalized=_norm(ws.cell(row=row,column=col).value)
+                if normalized in targets:
+                    found.add(targets[normalized])
+            if len(found)>best_count:
+                best_row=row
+                best_count=len(found)
+        if best_row is not None and best_count>=4:
+            return max(0,ws.max_row-best_row)
+        return None
+    finally:
+        wb.close()
 
 
 def fill_fai_template(template_path: str | Path, characteristics: Iterable[Any], output_path: str | Path | None = None) -> Path:
