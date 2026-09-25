@@ -19,6 +19,8 @@ from .modules.quality import (
     save_five_why,
 )
 from .modules.ez_methods import create_method_plan, method_dashboard
+from .modules.leadership_ui import leadership_blueprint
+from .modules.automation import automation_blueprint, register_automation_logic
 from .ui import page
 
 def e(value)->str:
@@ -67,9 +69,12 @@ def create_app(test_config:dict|None=None)->Flask:
     init_db()
     init_extensions()
     register_default_logic()
+    register_automation_logic()
     app=Flask(__name__)
     app.config.update(SECRET_KEY="superforge-local")
     if test_config: app.config.update(test_config)
+    app.register_blueprint(leadership_blueprint)
+    app.register_blueprint(automation_blueprint)
 
     @app.get("/")
     def dashboard():
@@ -81,13 +86,17 @@ def create_app(test_config:dict|None=None)->Flask:
                 "inventory":con.execute("SELECT COUNT(*) n FROM inventory_items WHERE (on_hand-allocated)<=reorder_point").fetchone()["n"],
                 "clocking":con.execute("SELECT COUNT(*) n FROM clocking_errors WHERE status!='closed'").fetchone()["n"],
                 "actions":con.execute("SELECT COUNT(*) n FROM workflow_actions WHERE status='open'").fetchone()["n"],
+                "overdue_actions":con.execute("SELECT COUNT(*) n FROM workflow_actions WHERE status='open' AND due_date!='' AND due_date<date('now')").fetchone()["n"],
             }
+            morale=con.execute("SELECT risk_score FROM morale_pulses ORDER BY period_end DESC,id DESC LIMIT 1").fetchone()
+            morale_risk="n/a" if morale is None else morale["risk_score"]
         cards=[
             ("Open Jobs",counts["jobs"],"/jobs"),("Open POs",counts["po"],"/purchase-orders"),
             ("Inventory Watch",counts["inventory"],"/inventory"),("Clocking Errors",counts["clocking"],"/clocking-errors"),
             ("Open Quality",pulse["open_quality"],"/quality"),("Workflow Actions",counts["actions"],"/planning"),
+            ("Overdue Actions",counts["overdue_actions"],"/leadership"),("Company Pulse Risk",morale_risk,"/leadership"),
         ]
-        body="<section class='page-head'><div class='grow'><p class='eyebrow'>One system. Shared context. Receipts for everything.</p><h1>Manufacturing command center</h1><p class='sub'>ERP, quality, maintenance, drawing control, FAI, PPAP, purchasing, inventory, clocking, planning and BEAN intelligence share one event and audit spine. Right-click any record to move through the related modules without losing context.</p></div><a class='button' href='/quality/new'>New Quality Record</a></section>"
+        body="<section class='page-head'><div class='grow'><p class='eyebrow'>One system. Shared context. Receipts for everything.</p><h1>Manufacturing command center</h1><p class='sub'>ERP, quality, maintenance, drawing control, FAI, PPAP, purchasing, inventory, clocking, planning, leadership, morale, rewards, automation and BEAN intelligence share one event and audit spine. Right-click any record to move through the related modules without losing context.</p></div><a class='button' href='/quality/new'>New Quality Record</a></section>"
         body+="<div class='grid'>"+"".join(f"<a class='card sf-context' style='text-decoration:none' href='{href}'><strong class='big'>{val}</strong><span class='label'>{e(label)}</span></a>" for label,val,href in cards)+"</div>"
         body+=f"<div class='panel' style='margin-top:14px'><h2>Quality pulse</h2><div class='statline'><span>Overdue: <b>{pulse['overdue']}</b></span><span>Open CARs: <b>{pulse['open_cars']}</b></span><span>Failed FAI: <b>{pulse['failed_fai']}</b></span><span>30-day PPM: <b>{'n/a' if pulse['ppm']['ppm'] is None else round(pulse['ppm']['ppm'],1)}</b></span></div></div>"
         return page("Command Center",body,module_key="")
@@ -537,7 +546,7 @@ def create_app(test_config:dict|None=None)->Flask:
     def context_record(entity_type,entity_id):
         if entity_type=="quality_record":
             return redirect(url_for("quality_detail",record_id=entity_id))
-        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans","method_dependency":"ezm_dependencies"}
+        table_map={"job":"jobs","purchase_order":"purchase_orders","inventory_item":"inventory_items","clocking_error":"clocking_errors","quality_record":"quality_records","machine":"machines","document":"documents","supplier":"suppliers","fai":"fai_runs","erp_connection":"erp_connections","integration_run":"integration_runs","learning_proposal":"learning_proposals","method_plan":"ezm_method_plans","method_dependency":"ezm_dependencies","morale_pulse":"morale_pulses","reward_account":"reward_accounts","training_requirement":"training_requirements","automation_rule":"automation_rules"}
         table=table_map.get(entity_type)
         if not table:
             return page("Record",f"<div class='panel'>Unknown entity type: {e(entity_type)}</div>",context_type=entity_type,context_id=entity_id),404
