@@ -23,6 +23,7 @@ from .modules.leadership_ui import leadership_blueprint
 from .modules.automation import automation_blueprint, register_automation_logic
 from .modules.reward_rules import register_reward_logic
 from .modules.iso_hungry import register_iso_hungry_logic
+from .modules.collaboration import collaboration_blueprint, register_collaboration_logic
 from .ui import page
 
 def e(value)->str:
@@ -74,11 +75,13 @@ def create_app(test_config:dict|None=None)->Flask:
     register_automation_logic()
     register_reward_logic()
     register_iso_hungry_logic()
+    register_collaboration_logic()
     app=Flask(__name__)
     app.config.update(SECRET_KEY="superforge-local")
     if test_config: app.config.update(test_config)
     app.register_blueprint(leadership_blueprint)
     app.register_blueprint(automation_blueprint)
+    app.register_blueprint(collaboration_blueprint)
 
     @app.get("/")
     def dashboard():
@@ -150,6 +153,7 @@ def create_app(test_config:dict|None=None)->Flask:
                         (po,request.form.get("supplier_id") or None,request.form.get("job_id") or None,request.form.get("status") or "open",request.form.get("order_date") or None,request.form.get("required_date") or None,request.form.get("expected_date") or None,request.form.get("total_value") or None,request.form.get("notes")))
                     rid=cur.lastrowid
                 record_event(event_type="PO_MUTATION",action="CREATE",module="purchase_orders",entity_type="purchase_order",entity_id=rid,actor="local")
+                publish("po.created",source_module="purchase_orders",entity_type="purchase_order",entity_id=str(rid),actor="local",payload={"po_number":po,"supplier_id":request.form.get("supplier_id") or None,"job_id":request.form.get("job_id") or None,"required_date":request.form.get("required_date") or "","expected_date":request.form.get("expected_date") or "","status":request.form.get("status") or "open"})
             return redirect("/purchase-orders")
         ctype,cid=request.args.get("context_type"),request.args.get("context_id")
         sql="""SELECT p.id,p.po_number,s.name supplier,j.job_number,p.status,p.order_date,p.required_date,p.expected_date,p.total_value
@@ -179,6 +183,11 @@ def create_app(test_config:dict|None=None)->Flask:
                         (item,request.form.get("description"),request.form.get("material_spec"),request.form.get("location"),request.form.get("on_hand") or 0,request.form.get("allocated") or 0,request.form.get("reorder_point") or 0,request.form.get("supplier_id") or None,request.form.get("notes")))
                     rid=cur.lastrowid
                 record_event(event_type="INVENTORY_MUTATION",action="CREATE",module="inventory",entity_type="inventory_item",entity_id=rid,actor="local")
+                available=float(request.form.get("on_hand") or 0)-float(request.form.get("allocated") or 0)
+                reorder=float(request.form.get("reorder_point") or 0)
+                publish("inventory.item.created",source_module="inventory",entity_type="inventory_item",entity_id=str(rid),actor="local",payload={"item_number":item,"supplier_id":request.form.get("supplier_id") or None,"available":available,"reorder_point":reorder})
+                if available<=reorder:
+                    publish("inventory.shortage",source_module="inventory",entity_type="inventory_item",entity_id=str(rid),actor="local",reason="Available quantity is at or below reorder point",payload={"item_number":item,"supplier_id":request.form.get("supplier_id") or None,"available":available,"reorder_point":reorder})
             return redirect("/inventory")
         ctype,cid=request.args.get("context_type"),request.args.get("context_id")
         sql="SELECT id,item_number,description,material_spec,location,on_hand,allocated,(on_hand-allocated) available,reorder_point,status FROM inventory_items"; args=()
@@ -407,6 +416,7 @@ def create_app(test_config:dict|None=None)->Flask:
                     tuple(request.form.get(k) for k in ("machine_number","name","department","location","criticality","manufacturer","model","serial_number","notes")))
                 rid=cur.lastrowid
             record_event(event_type="PM_MUTATION",action="MACHINE_CREATE",module="pm",entity_type="machine",entity_id=rid,actor="local")
+            publish("pm.machine.created",source_module="pm",entity_type="machine",entity_id=str(rid),actor="local",payload={"machine_number":request.form.get("machine_number"),"department":request.form.get("department"),"criticality":request.form.get("criticality")})
             return redirect("/pm")
         rows=_list("SELECT id,machine_number,name,department,location,criticality,status,manufacturer,model FROM machines ORDER BY id DESC LIMIT 300")
         form="""<details class='panel'><summary><b>Add machine</b></summary><form method='post' class='form-grid' style='margin-top:12px'>
@@ -424,6 +434,7 @@ def create_app(test_config:dict|None=None)->Flask:
                     (request.form.get("document_number"),request.form.get("title"),request.form.get("revision"),request.form.get("document_type") or "drawing",request.form.get("status") or "draft",request.form.get("part_id") or None,request.form.get("job_id") or None,request.form.get("storage_reference"),request.form.get("notes")))
                 rid=cur.lastrowid
             record_event(event_type="VAULT_MUTATION",action="DOCUMENT_CREATE",module="vault",entity_type="document",entity_id=rid,actor="local")
+            publish("vault.document.created",source_module="vault",entity_type="document",entity_id=str(rid),actor="local",payload={"document_number":request.form.get("document_number"),"revision":request.form.get("revision"),"document_type":request.form.get("document_type") or "drawing","part_id":request.form.get("part_id") or None,"job_id":request.form.get("job_id") or None,"status":request.form.get("status") or "draft"})
             return redirect("/vault")
         ctype,cid=request.args.get("context_type"),request.args.get("context_id")
         sql="SELECT id,document_number,title,revision,document_type,status,part_id,job_id,storage_reference FROM documents"; args=()
@@ -475,6 +486,7 @@ def create_app(test_config:dict|None=None)->Flask:
                 cur=con.execute("INSERT INTO suppliers(name,code,contact,email,phone,notes) VALUES(?,?,?,?,?,?)",tuple(request.form.get(k) for k in ("name","code","contact","email","phone","notes")))
                 rid=cur.lastrowid
             record_event(event_type="SUPPLIER_MUTATION",action="CREATE",module="suppliers",entity_type="supplier",entity_id=rid,actor="local")
+            publish("supplier.created",source_module="suppliers",entity_type="supplier",entity_id=str(rid),actor="local",payload={"name":request.form.get("name"),"code":request.form.get("code")})
             return redirect("/suppliers")
         rows=_list("SELECT id,name,code,contact,email,phone,status,notes FROM suppliers ORDER BY name")
         form="""<details class='panel'><summary><b>Add supplier</b></summary><form method='post' class='form-grid' style='margin-top:12px'>
@@ -492,6 +504,7 @@ def create_app(test_config:dict|None=None)->Flask:
                     (request.form.get("name"),request.form.get("erp_type") or "generic",request.form.get("adapter_type") or "flatfile",request.form.get("direction") or "bidirectional",json.dumps(config),request.form.get("credentials_ref")))
                 rid=cur.lastrowid
             record_event(event_type="INTEGRATION_CONFIG",action="CREATE",module="integrations",entity_type="erp_connection",entity_id=rid,actor="local",data={"name":request.form.get("name"),"adapter":request.form.get("adapter_type")})
+            publish("erp.connection.created",source_module="integrations",entity_type="erp_connection",entity_id=str(rid),actor="local",payload={"name":request.form.get("name"),"erp_type":request.form.get("erp_type") or "generic","adapter_type":request.form.get("adapter_type") or "flatfile","direction":request.form.get("direction") or "bidirectional"})
             return redirect("/integrations")
         rows=_list("SELECT id,name,erp_type,adapter_type,direction,enabled,credentials_ref,updated_at FROM erp_connections ORDER BY id DESC")
         runs=_list("SELECT id,run_id,direction,entity_type,status,read_count,applied_count,error_count,started_at,completed_at FROM integration_runs ORDER BY id DESC LIMIT 30")

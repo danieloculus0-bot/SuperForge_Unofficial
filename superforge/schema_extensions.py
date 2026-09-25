@@ -249,6 +249,42 @@ CREATE TABLE IF NOT EXISTS automation_rule_runs(
 );
 CREATE INDEX IF NOT EXISTS ix_automation_rules_event ON automation_rules(event_type,enabled,priority);
 
+CREATE TABLE IF NOT EXISTS event_delivery_receipts(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  handler_key TEXT NOT NULL,
+  status TEXT NOT NULL,
+  error_text TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(event_id,handler_key)
+);
+CREATE INDEX IF NOT EXISTS ix_event_delivery_status ON event_delivery_receipts(status,created_at);
+
+CREATE TABLE IF NOT EXISTS module_suggestions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_event_id TEXT NOT NULL,
+  correlation_id TEXT,
+  source_module TEXT NOT NULL,
+  target_module TEXT NOT NULL,
+  suggestion_key TEXT NOT NULL,
+  title TEXT NOT NULL,
+  rationale TEXT NOT NULL,
+  recommended_action TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'normal',
+  status TEXT NOT NULL DEFAULT 'open',
+  entity_type TEXT,
+  entity_id TEXT,
+  evidence_json TEXT NOT NULL DEFAULT '{}',
+  accepted_action_id INTEGER REFERENCES workflow_actions(id),
+  reviewed_by TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TEXT,
+  UNIQUE(source_event_id,target_module,suggestion_key)
+);
+CREATE INDEX IF NOT EXISTS ix_module_suggestion_queue ON module_suggestions(status,target_module,priority,created_at);
+
 -- ISO-Hungry reporting-to-pay backend.
 -- Recognition remains the positive event ledger. Cash compensation is a separate,
 -- approval-controlled layer so reported events cannot silently become payroll.

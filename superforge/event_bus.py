@@ -41,6 +41,24 @@ def _insert_event(event:DomainEvent,target_module:str="")->None:
         correlation_id=event.correlation_id,
     )
 
+def _handler_key(handler:Handler)->str:
+    return f"{getattr(handler,'__module__','unknown')}.{getattr(handler,'__qualname__',getattr(handler,'__name__','handler'))}"
+
+
+def _record_delivery(event:DomainEvent,handler:Handler,status:str,error_text:str="")->None:
+    try:
+        with db() as con:
+            con.execute(
+                """INSERT INTO event_delivery_receipts(event_id,event_type,handler_key,status,error_text)
+                   VALUES(?,?,?,?,?)
+                   ON CONFLICT(event_id,handler_key) DO UPDATE SET
+                     status=excluded.status,error_text=excluded.error_text,updated_at=CURRENT_TIMESTAMP""",
+                (event.event_id,event.event_type,_handler_key(handler),status,error_text[:4000]),
+            )
+    except Exception:
+        pass
+
+
 def publish(event_type:str,*,source_module:str,entity_type:str,entity_id:str,actor:str="",reason:str="",payload:dict[str,Any]|None=None,parent_event_id:str="",correlation_id:str="")->DomainEvent:
     event=DomainEvent(
         event_id=f"evt_{uuid.uuid4().hex}",event_type=event_type,source_module=source_module,entity_type=entity_type,
@@ -48,8 +66,43 @@ def publish(event_type:str,*,source_module:str,entity_type:str,entity_id:str,act
         parent_event_id=parent_event_id,
     )
     _insert_event(event)
-    for handler in list(_HANDLERS.get(event_type,[]))+list(_HANDLERS.get("*",[])):
-        handler(event)
+    ordered=list(_HANDLERS.get(event_type,[]))+list(_HANDLERS.get("*",[]))
+    handlers=[]
+    seen=set()
+    for handler in ordered:
+        marker=id(handler)
+        if marker in seen:
+            continue
+        seen.add(marker)
+        handlers.append(handler)
+
+    failed=False
+    for handler in handlers:
+        try:
+            handler(event)
+        except Exception as exc:
+            failed=True
+            error_text=f"{type(exc).__name__}: {exc}"
+            _record_delivery(event,handler,"failed",error_text)
+            record_event(
+                event_type="EVENT_HANDLER_FAILURE",action="HANDLER_FAILED",module="event_bus",
+                source_module=event.source_module,target_module=_handler_key(handler),
+                entity_type=event.entity_type,entity_id=event.entity_id,actor=event.actor,
+                reason=error_text,data={"source_event_type":event.event_type,"handler":_handler_key(handler)},
+                parent_event_id=event.event_id,correlation_id=event.correlation_id,
+            )
+        else:
+            _record_delivery(event,handler,"delivered")
+
+    if handlers:
+        try:
+            with db() as con:
+                con.execute(
+                    "UPDATE event_ledger SET status=? WHERE event_id=?",
+                    ("partial_failure" if failed else "delivered",event.event_id),
+                )
+        except Exception:
+            pass
     return event
 
 def create_action(event:DomainEvent,*,workflow_key:str,step_key:str,target_module:str,assigned_to:str="",due_date:str="",input_data:dict|None=None)->int:
@@ -172,5 +225,7 @@ def logic_matrix()->list[dict[str,str]]:
         {"source":"ERP integration","event":"Sync completed/conflict","targets":"Reconciliation, all trackers, BEAN"},
         {"source":"Leadership / Company Pulse","event":"Aggregate morale risk / recognition / training","targets":"Leadership review, training, reward ledger, BEAN trend analysis, audit"},
         {"source":"Automation","event":"Configured event rule matched","targets":"Assigned and due-dated workflow action with execution receipt"},
+        {"source":"Collaboration","event":"Cross-module suggestion","targets":"Human-reviewed suggestion queue; accepted suggestions become workflow actions"},
+        {"source":"Event Bus","event":"Subscriber delivery","targets":"Per-handler delivery receipt; subscriber failures are isolated and audited"},
         {"source":"BEAN","event":"Pattern/proposal","targets":"Human-reviewed rule proposal only"},
     ]

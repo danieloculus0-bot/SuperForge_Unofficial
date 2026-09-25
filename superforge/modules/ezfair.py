@@ -6,7 +6,8 @@ from pathlib import Path
 from ..audit import record_event
 from ..db import db
 from ..event_bus import publish
-from .ezfair_engine import add_pdf_balloons, extract_pdf_dimensions, get_last_skipped_candidates
+from .ezfair_engine import add_pdf_balloons, get_last_skipped_candidates
+from .ezfair_enhancements import ExtractionSettings, extract_pdf_dimensions_enhanced
 from .ezfair_writer import fill_fai_template
 
 def create_fai_from_drawing(
@@ -20,12 +21,13 @@ def create_fai_from_drawing(
     part_id:int|None=None,
     drawing_document_id:int|None=None,
     drawing_revision:str="",
+    extraction_settings:ExtractionSettings|None=None,
 )->dict:
     pdf_path=Path(pdf_path)
     template_path=Path(template_path)
     output_dir=Path(output_dir)
     output_dir.mkdir(parents=True,exist_ok=True)
-    characteristics=extract_pdf_dimensions(pdf_path)
+    characteristics=extract_pdf_dimensions_enhanced(pdf_path,extraction_settings)
     ballooned=add_pdf_balloons(pdf_path,characteristics,output_dir/f"{pdf_path.stem}_BALLOONED.pdf")
     workbook=fill_fai_template(template_path,characteristics,output_dir/f"{pdf_path.stem}_FAI{template_path.suffix.lower()}")
     with db() as con:
@@ -74,4 +76,5 @@ def complete_fai(fai_id:int,*,actor:str)->dict:
         con.execute("UPDATE fai_runs SET status=?,completed_at=CASE WHEN ?='complete' THEN CURRENT_TIMESTAMP ELSE completed_at END WHERE id=?",(status,status,fai_id))
         after=dict(con.execute("SELECT * FROM fai_runs WHERE id=?",(fai_id,)).fetchone())
     record_event(event_type="FAI",action="COMPLETION_REVIEW",module="ezfair",entity_type="fai",entity_id=fai_id,actor=actor,after=after)
+    publish("fai.completed" if status=="complete" else "fai.reviewed",source_module="ezfair",entity_type="fai",entity_id=str(fai_id),actor=actor,payload={"status":status,"fail_count":after.get("fail_count",0),"pass_count":after.get("pass_count",0),"part_id":after.get("part_id"),"job_id":after.get("job_id"),"drawing_revision":after.get("drawing_revision")})
     return after
