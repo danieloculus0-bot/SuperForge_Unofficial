@@ -15,6 +15,8 @@ The goal is simple: one package, one context model, one audit spine, and no disc
 - **ForgeVault:** controlled drawing/document identity, revision/version concepts, release/audit patterns.
 - **EZ FAIR:** actual PDF dimension extraction, ballooning, and FAI workbook writer source is vendored into superforge/modules/.
 - **EZ Methods:** Vantage-style methods master planning, drawing/PO requirement traceability, operation-level material/tool/gage/fixture readiness, GD&T-to-inspection linkage, and EZ Expedite purchasing triggers.
+- **Leadership / Company Pulse:** cross-functional accountability, aggregate morale/workforce-health trends, recognition rewards, training incentives, and action closure.
+- **Automation:** configurable event rules create assigned, due-dated workflow actions with execution receipts while controlled process rules remain deterministic.
 - **BEAN:** memory/learning direction is adapted into supervised observations and improvement proposals. Learning cannot silently rewrite production logic.
 
 ## Non-negotiable architecture
@@ -32,6 +34,9 @@ Examples:
 - inventory shortage -> purchasing -> job schedule -> quote material risk
 - clocking error -> correction -> job-cost review -> BEAN observation
 - ERP sync -> reconciliation -> tracker refresh -> intelligence review
+- morale/company pulse -> leadership review -> BEAN trend comparison
+- training completion -> audited recognition credit -> reward/vendor ledger
+- configurable event match -> assigned action -> due date -> execution receipt
 
 ### 2. Everything is auditable
 
@@ -141,6 +146,19 @@ BEAN-style learning can:
 
 It cannot silently change production rules. Proposals remain `proposal_only` until a recorded human review changes permission.
 
+
+### 7. Leadership includes morale and recognition
+
+Leadership is treated as an operating process. The Company Pulse view combines open/overdue/unassigned work, quality load, purchasing risk, blocked method dependencies, aggregate morale signals, recognition, and training.
+
+Morale/workforce health is stored as department/period aggregates. Recognition accounts and vending/canteen references are kept in a separate positive reward ledger.
+
+### 8. Automation must leave receipts
+
+Configurable automation rules match domain events and create normal workflow actions with target module, assignee, due date, source event, and execution receipt.
+
+Automation can route work aggressively. It cannot silently rewrite controlled methods, inspection criteria, quality requirements, or ERP source data.
+
 ## Run
 
 ```powershell
@@ -167,6 +185,6 @@ http://127.0.0.1:5060
 
 ## Current build status
 
-This branch is the new unified foundation. It already contains the shared schema, event bus, audit journal, context router, ERP adapter framework, native quality services, supervised learning services, and vendored EZ FAIR extraction/workbook engines.
+This branch is the new unified foundation. It already contains the shared schema, event bus, audit journal, context router, ERP adapter framework, native quality services, EZ Methods, Leadership / Company Pulse, recognition and training ledgers, configurable automation, supervised learning services, and vendored EZ FAIR extraction/workbook engines.
 
 Legacy repos remain untouched while migration continues.
