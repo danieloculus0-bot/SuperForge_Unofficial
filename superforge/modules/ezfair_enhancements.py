@@ -25,7 +25,9 @@ except ImportError:  # Optional at import time; explained clearly when OCR is ne
     pytesseract = None
     Image = None
 
-from ..runtime_paths import data_root\n\nSETTINGS_PATH = data_root() / "ezfair_settings.json"
+from ..runtime_paths import data_root
+
+SETTINGS_PATH = data_root() / "ezfair_settings.json"
 
 
 @dataclass
