@@ -156,6 +156,42 @@ CREATE TABLE IF NOT EXISTS reward_events(
 );
 CREATE INDEX IF NOT EXISTS ix_reward_events_account ON reward_events(account_id,created_at);
 
+CREATE TABLE IF NOT EXISTS reward_rules(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  event_type TEXT NOT NULL,
+  source_module TEXT,
+  account_payload_key TEXT NOT NULL DEFAULT 'reward_account_id',
+  payload_key TEXT,
+  operator TEXT NOT NULL DEFAULT 'eq',
+  payload_value TEXT,
+  category TEXT NOT NULL DEFAULT 'recognition',
+  points REAL NOT NULL,
+  requires_approval INTEGER NOT NULL DEFAULT 1,
+  period_limit_points REAL NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS reward_nominations(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_id INTEGER NOT NULL REFERENCES reward_rules(id),
+  source_event_id TEXT NOT NULL,
+  account_id INTEGER NOT NULL REFERENCES reward_accounts(id),
+  points REAL NOT NULL,
+  category TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  reviewed_by TEXT,
+  reward_event_id INTEGER REFERENCES reward_events(id),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  reviewed_at TEXT,
+  UNIQUE(rule_id,source_event_id,account_id)
+);
+CREATE INDEX IF NOT EXISTS ix_reward_rules_event ON reward_rules(event_type,active);
+CREATE INDEX IF NOT EXISTS ix_reward_nomination_status ON reward_nominations(status,created_at);
+
 CREATE TABLE IF NOT EXISTS training_requirements(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   training_key TEXT NOT NULL UNIQUE,
