@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">Unified intelligent manufacturing platform</p><h1>{{ page_heading }}</h1><p>{{ page_subheading }}</p></div>
+  <div class="status-card"><strong>Audit spine</strong><span>Hash-chained, cross-module, immutable journal</span></div>
+</section>
+<section class="grid">
+  <article class="card context-target" data-entity-type="work_order" data-entity-id="demo-job"><h2>Jobs</h2><p>Job tracker, operations, due dates, clocking, quality and material context.</p></article>
+  <article class="card context-target" data-entity-type="purchase_order" data-entity-id="demo-po"><h2>Purchase Orders</h2><p>Supplier, inventory, quality, material and job linkage.</p></article>
+  <article class="card context-target" data-entity-type="inventory_item" data-entity-id="demo-stock"><h2>Inventory</h2><p>Stock, lots, heat/cert traceability and purchasing pressure.</p></article>
+  <article class="card context-target" data-entity-type="clocking_error" data-entity-id="demo-clock"><h2>Clocking Errors</h2><p>Exception reporting tied to job, operation, machine and corrective action.</p></article>
+  <article class="card context-target" data-entity-type="quality_event" data-entity-id="demo-quality"><h2>Quality</h2><p>NCR, RMA, CAR, PPAP, FAI, deviations, supplier quality and evidence.</p></article>
+  <article class="card context-target" data-entity-type="drawing" data-entity-id="demo-dwg"><h2>EZ FAIR + Vault</h2><p>Drawing intake, balloons, GD&T, inspection plans and revision-controlled evidence.</p></article>
+</section>
+{% endblock %}

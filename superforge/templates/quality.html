@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">Quality is the center of gravity</p><h1>Quality Command Center</h1><p>NCR through PPAP, tied into jobs, POs, inventory, drawings, machines, suppliers, clocking and audit evidence.</p></div>
+  <div class="status-card"><strong>Traceability</strong><span>Every mutation emits a domain event and tamper-evident audit entry.</span></div>
+</section>
+<section class="grid">
+{% for group, items in capabilities.items() %}
+  <article class="card context-target" data-entity-type="quality_event" data-entity-id="{{ group }}">
+    <p class="eyebrow">{{ group.replace('_',' ') }}</p>
+    <h2>{{ group.replace('_',' ').title() }}</h2>
+    <ul>{% for item in items %}<li>{{ item }}</li>{% endfor %}</ul>
+  </article>
+{% endfor %}
+</section>
+{% endblock %}
