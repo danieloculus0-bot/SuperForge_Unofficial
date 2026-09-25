@@ -249,6 +249,122 @@ CREATE TABLE IF NOT EXISTS automation_rule_runs(
 );
 CREATE INDEX IF NOT EXISTS ix_automation_rules_event ON automation_rules(event_type,enabled,priority);
 
+-- ISO-Hungry reporting-to-pay backend.
+-- Recognition remains the positive event ledger. Cash compensation is a separate,
+-- approval-controlled layer so reported events cannot silently become payroll.
+CREATE TABLE IF NOT EXISTS iso_hungry_pay_profiles(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reward_account_id INTEGER NOT NULL UNIQUE REFERENCES reward_accounts(id),
+  employee_ref TEXT NOT NULL UNIQUE,
+  payroll_ref TEXT,
+  pay_group TEXT,
+  allow_cash_awards INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'active',
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_profile_group ON iso_hungry_pay_profiles(pay_group,status);
+
+CREATE TABLE IF NOT EXISTS iso_hungry_cash_policies(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  reward_category TEXT NOT NULL DEFAULT '*',
+  source_module TEXT,
+  earning_code TEXT NOT NULL DEFAULT 'ISOH_BONUS',
+  currency TEXT NOT NULL DEFAULT 'USD',
+  dollars_per_point REAL NOT NULL DEFAULT 0,
+  fixed_amount REAL NOT NULL DEFAULT 0,
+  max_event_amount REAL NOT NULL DEFAULT 0,
+  rolling_30d_limit REAL NOT NULL DEFAULT 0,
+  requires_approval INTEGER NOT NULL DEFAULT 1,
+  active INTEGER NOT NULL DEFAULT 1,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_policy_match ON iso_hungry_cash_policies(reward_category,source_module,active);
+
+CREATE TABLE IF NOT EXISTS iso_hungry_earnings(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  profile_id INTEGER NOT NULL REFERENCES iso_hungry_pay_profiles(id),
+  policy_id INTEGER NOT NULL REFERENCES iso_hungry_cash_policies(id),
+  reward_event_id INTEGER NOT NULL REFERENCES reward_events(id),
+  source_event_id TEXT,
+  points REAL NOT NULL,
+  amount REAL NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'USD',
+  earning_code TEXT NOT NULL DEFAULT 'ISOH_BONUS',
+  category TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  approved_by TEXT,
+  approved_at TEXT,
+  rejected_by TEXT,
+  rejected_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(profile_id,policy_id,reward_event_id)
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_earning_status ON iso_hungry_earnings(status,created_at);
+CREATE INDEX IF NOT EXISTS ix_isoh_earning_profile ON iso_hungry_earnings(profile_id,created_at);
+
+CREATE TABLE IF NOT EXISTS iso_hungry_pay_batches(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  batch_key TEXT NOT NULL UNIQUE,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  pay_group TEXT,
+  status TEXT NOT NULL DEFAULT 'draft',
+  currency TEXT NOT NULL DEFAULT 'USD',
+  item_count INTEGER NOT NULL DEFAULT 0,
+  total_amount REAL NOT NULL DEFAULT 0,
+  created_by TEXT,
+  approved_by TEXT,
+  exported_by TEXT,
+  payment_reference TEXT,
+  export_sha256 TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  approved_at TEXT,
+  exported_at TEXT,
+  paid_at TEXT,
+  voided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_batch_period ON iso_hungry_pay_batches(period_end,status);
+
+CREATE TABLE IF NOT EXISTS iso_hungry_pay_batch_items(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  batch_id INTEGER NOT NULL REFERENCES iso_hungry_pay_batches(id),
+  earning_id INTEGER NOT NULL UNIQUE REFERENCES iso_hungry_earnings(id),
+  profile_id INTEGER NOT NULL REFERENCES iso_hungry_pay_profiles(id),
+  employee_ref TEXT NOT NULL,
+  payroll_ref TEXT,
+  pay_group TEXT,
+  earning_code TEXT NOT NULL,
+  currency TEXT NOT NULL,
+  amount REAL NOT NULL,
+  reward_event_id INTEGER NOT NULL,
+  source_event_id TEXT,
+  category TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_batch_items_batch ON iso_hungry_pay_batch_items(batch_id,id);
+
+CREATE TABLE IF NOT EXISTS iso_hungry_exceptions(
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reward_event_id INTEGER NOT NULL REFERENCES reward_events(id),
+  reward_account_id INTEGER NOT NULL REFERENCES reward_accounts(id),
+  reason_code TEXT NOT NULL,
+  detail TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  resolved_by TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resolved_at TEXT,
+  UNIQUE(reward_event_id,reason_code)
+);
+CREATE INDEX IF NOT EXISTS ix_isoh_exception_status ON iso_hungry_exceptions(status,created_at);
+
 """
 def init_extensions()->None:
     with db() as con:

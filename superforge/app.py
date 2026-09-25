@@ -22,6 +22,7 @@ from .modules.ez_methods import create_method_plan, method_dashboard
 from .modules.leadership_ui import leadership_blueprint
 from .modules.automation import automation_blueprint, register_automation_logic
 from .modules.reward_rules import register_reward_logic
+from .modules.iso_hungry import register_iso_hungry_logic
 from .ui import page
 
 def e(value)->str:
@@ -72,6 +73,7 @@ def create_app(test_config:dict|None=None)->Flask:
     register_default_logic()
     register_automation_logic()
     register_reward_logic()
+    register_iso_hungry_logic()
     app=Flask(__name__)
     app.config.update(SECRET_KEY="superforge-local")
     if test_config: app.config.update(test_config)
