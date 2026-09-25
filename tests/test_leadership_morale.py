@@ -81,6 +81,28 @@ def test_leadership_and_automation(tmp_path,monkeypatch):
     )
     assert reward_balance(account_id)==40
 
+    create_reward_rule({
+        "name":"Capped recognition",
+        "event_type":"quality.capped",
+        "source_module":"quality",
+        "account_payload_key":"reward_account_id",
+        "category":"quality",
+        "points":"5",
+        "requires_approval":"0",
+        "period_limit_points":"1",
+    },actor="tester")
+    capped_event=publish(
+        "quality.capped",source_module="quality",entity_type="job",entity_id="42",
+        actor="tester",payload={"reward_account_id":account_id},
+    )
+    assert reward_balance(account_id)==40
+    with db() as con:
+        held=con.execute(
+            "SELECT status FROM reward_nominations WHERE source_event_id=?",
+            (capped_event.event_id,),
+        ).fetchone()
+        assert held["status"]=="held_limit"
+
     rule_id=create_automation_rule({
         "name":"Escalate serious test signal",
         "event_type":"test.signal",
