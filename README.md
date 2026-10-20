@@ -1,66 +1,36 @@
-# SuperForge Unofficial
+# SuperForge Unofficial (artifact planning)
 
-SuperForge Unofficial is the release-candidate and build-artifact repository for the SuperForge ERP Suite.
+Historical release-candidate and artifact-manifest planning repository for the earlier SuperForge line. **This is not a compiled, deployed ERP product.**
 
-## Repo role
+## Current build state
 
-This repository is for packaged builds, installer experiments, checksums, manifests, and release-candidate documentation.
+**Reviewed:** 2026-10-20 · **Inspected main:** `861d536ea48b`.
 
-Current ERP consolidation source lives in:
+**No automated GitHub Actions runs found** at inspection; status is unverified in hosted CI.
 
-- `danieloculus0-bot/Axiom_Beta`
+[Live CI history](https://github.com/danieloculus0-bot/SuperForge_Unofficial/actions) supersedes this dated report.
 
-Earlier SuperForge source foundation:
+## Implemented or recorded today
 
-- `danieloculus0-bot/MFGForge`
+- Build target and installer/artifact manifest conventions for a possible SuperForge release candidate.
+- Context for the earlier `MFGForge` integration direction and a planned release layout.
+- Current **Axiom Beta** is the canonical ERP consolidation source, not this repository.
 
-Source logic being consolidated into the suite comes from:
+## Run and verification
 
-- `danieloculus0-bot/ForgeQC`
-- `danieloculus0-bot/ForgeVault`
-- `danieloculus0-bot/MFGForge`
+Read repository planning documents and [the archived original README](docs/archive/README_2026-10-20_before_refresh.md). No verified application executable or standalone launch command is supplied from this repository.
 
-## Current build target
+## Known boundaries
 
-The earlier integration target was:
+- No GitHub Actions run was available at inspection. The planned `dist/SuperForge.exe` path is a target, not a confirmed build artifact.
+- Do not advertise app modules, production deployment or a green installer without an actual independent CI job and downloadable asset.
 
-```text
-MFGForge: integration/superforge-suite
-```
+## Next work
 
-Current canonical consolidation target: `Axiom_Beta/main`.
+Either publish a real, tested Axiom-based artifact pipeline or explicitly retain this repository as historical release planning only.
 
-The package target is:
+## References
 
-```text
-dist/SuperForge.exe
-```
-
-## Product goal
-
-One local Windows executable launches one SuperForge ERP Suite containing:
-
-- quality events, RMA, NCR, DMR, CAPA, and deviations
-- controlled vendor, supplier, material, purchased part, and document vault logic
-- quoting intake, drawing/PDF BOM candidate review, material assignment drafts, and lead-time logic
-- planning and purchasing watchlists
-- material certificate control
-- machine utilization and capacity pressure
-- FPY, operator efficiency, quoting throughput, and company pulse reporting
-- clean cross-module intelligence and workflow review gates
-
-## Boundary rule
-
-Do not develop primary source code directly in this repository unless the project intentionally migrates here later.
-
-For now:
-
-- `Axiom_Beta` is the current ERP consolidation source.
-- `MFGForge` remains an earlier application source line.
-- `SuperForge_Unofficial` is the release/artifact repo.
-
-## Portfolio consolidation note (2026-10-20)
-
-**Status: release/artifact planning repository, not a built ERP product.** The inspected tree contains manifests and planning documentation, not a completed application binary or deployment workflow; no GitHub Actions runs appeared in the inspected history. References above to `MFGForge: integration/superforge-suite` identify an **earlier integration direction**. [Axiom Beta](https://github.com/danieloculus0-bot/Axiom_Beta) is the current ERP consolidation target, while [MFGForge](https://github.com/danieloculus0-bot/MFGForge) remains a historical source foundation. A compiled, tested release needs an actual artifact and independently passing installer checks before advertising availability.
-
-[Portfolio audit](https://github.com/danieloculus0-bot/Axiom_Beta/blob/main/docs/PORTFOLIO_AUDIT_2026-10-20.md).
+- [Axiom Beta](https://github.com/danieloculus0-bot/Axiom_Beta)
+- [Historical MFGForge](https://github.com/danieloculus0-bot/MFGForge)
+- [Complete previous README and historical planning notes](docs/archive/README_2026-10-20_before_refresh.md)
