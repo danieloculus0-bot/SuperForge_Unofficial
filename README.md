@@ -6,7 +6,11 @@ SuperForge Unofficial is the release-candidate and build-artifact repository for
 
 This repository is for packaged builds, installer experiments, checksums, manifests, and release-candidate documentation.
 
-Primary source code lives in:
+Current ERP consolidation source lives in:
+
+- `danieloculus0-bot/Axiom_Beta`
+
+Earlier SuperForge source foundation:
 
 - `danieloculus0-bot/MFGForge`
 
@@ -18,11 +22,13 @@ Source logic being consolidated into the suite comes from:
 
 ## Current build target
 
-The integration branch is:
+The earlier integration target was:
 
 ```text
 MFGForge: integration/superforge-suite
 ```
+
+Current canonical consolidation target: `Axiom_Beta/main`.
 
 The package target is:
 
@@ -49,5 +55,12 @@ Do not develop primary source code directly in this repository unless the projec
 
 For now:
 
-- `MFGForge` is the source-of-truth app repo.
+- `Axiom_Beta` is the current ERP consolidation source.
+- `MFGForge` remains an earlier application source line.
 - `SuperForge_Unofficial` is the release/artifact repo.
+
+## Portfolio consolidation note (2026-10-20)
+
+**Status: release/artifact planning repository, not a built ERP product.** The inspected tree contains manifests and planning documentation, not a completed application binary or deployment workflow; no GitHub Actions runs appeared in the inspected history. References above to `MFGForge: integration/superforge-suite` identify an **earlier integration direction**. [Axiom Beta](https://github.com/danieloculus0-bot/Axiom_Beta) is the current ERP consolidation target, while [MFGForge](https://github.com/danieloculus0-bot/MFGForge) remains a historical source foundation. A compiled, tested release needs an actual artifact and independently passing installer checks before advertising availability.
+
+[Portfolio audit](https://github.com/danieloculus0-bot/Axiom_Beta/blob/main/docs/PORTFOLIO_AUDIT_2026-10-20.md).
