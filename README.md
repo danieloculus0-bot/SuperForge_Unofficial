@@ -1,3 +1,5 @@
+> **Lifecycle: successful prototype-planning archive, superseded (owner disposition, November 14, 2026).** The original objective here was to explore and document the SuperForge release-candidate artifact layout and build-manifest strategy. That planning exercise is complete; Axiom_Beta is the successor for active ERP consolidation and packaging work. Preserve this repository as reference material rather than reopening it as a missing production application. **No compiled, deployed SuperForge executable was verified from this repository.** This is a documented lifecycle disposition, not a claim that GitHub's repository Archived setting has been enabled.
+
 # SuperForge Unofficial (artifact planning)
 
 Historical release-candidate and artifact-manifest planning repository for the earlier SuperForge line. **This is not a compiled, deployed ERP product.**
